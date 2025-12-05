@@ -84,10 +84,6 @@ done
 # shellcheck disable=SC2046
 wait $(jobs -p) || return 1
 
-APPLY_PATCH "system" "system/priv-app/SpriteWallpaper/SpriteWallpaper.apk" \
-    "$MODPATH/SpriteWallpaper.apk/0001-Force-Paradigm-wallpapers-motion-animator.patch"
-APPLY_PATCH "system" "system/priv-app/SpriteWallpaper/SpriteWallpaper.apk" \
-    "$MODPATH/SpriteWallpaper.apk/0002-Adjust-motion-animator-for-60fps-video-files.patch"
 APPLY_PATCH "system" "system/priv-app/wallpaper-res/wallpaper-res.apk" \
     "$MODPATH/wallpaper-res.apk/0001-Adjust-metadata-for-60fps-video-files.patch"
 
