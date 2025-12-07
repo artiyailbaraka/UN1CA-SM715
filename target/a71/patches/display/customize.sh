@@ -62,4 +62,6 @@ ADD_TO_WORK_DIR "r8qxxx" "vendor" "lib64/hw/memtrack.kona.so" 0 0 644 "u:object_
 
 mv "$WORK_DIR/vendor/lib64/hw/lights.kona.so" "$WORK_DIR/vendor/lib64/hw/lights.sm6150.so"
 
+HEX_PATCH "$WORK_DIR/vendor/lib64/libsdmutils.so" "40F9F303012A3401" "40F9130080523401"
+
 LOG_STEP_OUT
