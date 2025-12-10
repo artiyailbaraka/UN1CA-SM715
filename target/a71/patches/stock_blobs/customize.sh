@@ -91,6 +91,11 @@ ADD_TO_WORK_DIR "a52qnsxx" "system_ext" "lib64/libfm-hci.so" 0 0 644 "u:object_r
 ADD_TO_WORK_DIR "a52qnsxx" "system_ext" "lib64/vendor.qti.hardware.fm@1.0.so" 0 0 644 "u:object_r:system_lib_file:s0"
 LOG_STEP_OUT
 
+LOG_STEP_IN "- Adding stock CameraLightSensor app"
+ADD_TO_WORK_DIR "$TARGET_FIRMWARE" "system" "system/etc/permissions/privapp-permissions-com.samsung.adaptivebrightnessgo.cameralightsensor.xml" 0 0 644 "u:object_r:system_file:s0"
+ADD_TO_WORK_DIR "$TARGET_FIRMWARE" "system" "system/priv-app/CameraLightSensor/CameraLightSensor.apk" 0 0 644 "u:object_r:system_file:s0"
+LOG_STEP_OUT
+
 LOG_STEP_IN "- Add A73 vintf manifest"
 ADD_TO_WORK_DIR "a73xqxx" "system" "system/etc/vintf/manifest.xml" 0 0 644 "u:object_r:system_file:s0"
 LOG_STEP_OUT
