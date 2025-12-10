@@ -1,7 +1,6 @@
 LOG_STEP_IN "- Adding m36xxx portrait data"
 DELETE_FROM_WORK_DIR "system" "system/cameradata/portrait_data"
 ADD_TO_WORK_DIR "m36xxx" "system" "system/cameradata/portrait_data" 0 0 755 "u:object_r:system_file:s0"
-ADD_TO_WORK_DIR "m36xxx" "system" "system/lib64/libPortraitSolution.camera.samsung.so" 0 0 644 "u:object_r:system_lib_file:s0"
 LOG_STEP_OUT
 
 if ! grep -q "Camera End" "$WORK_DIR/vendor/ueventd.rc"; then
