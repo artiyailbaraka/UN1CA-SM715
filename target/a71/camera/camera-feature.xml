@@ -122,7 +122,9 @@
     <local name="SUPPORT_ADDITIONAL_EFFECTS_WITH_SCENE_DETECTION" value="true" />
     <local name="SUPPORT_SCENE_DETECTION_LITE" value="false" />
     <local name="SUPPORT_SCENE_OPTIMIZER_WITH_3_4H" value="true" />
-    <local name="SUPPORT_MOTION_PHOTO" value="false" />
+	<local name="SUPPORT_MOTION_PHOTO_BEFORE_AND_AFTER_AS_DEFAULT_CAPTURE_MODE" value="true"/>
+	<local name="MOTION_PHOTO_RECORDING_FPS" value="30"/>
+    <local name="SUPPORT_MOTION_PHOTO" value="true" />
     <local name="SUPPORT_PHOTO_NIGHT" value="true"/>
     <local name="SUPPORT_MACRO_NUDGE" value="true" />
     <local name="SUPPORT_ADVANCED_INTELLIGENT_OPTIONS" value="true" />
@@ -201,7 +203,7 @@
 
     <!-- Post Picture Processing -->
     <local name="SUPPORT_POST_PICTURE_PROCESSING" value="true"/>
-    <local name="SUPPORT_POST_PROCESSING_MOTION_PHOTO" value="false"/>
+    <local name="SUPPORT_POST_PROCESSING_MOTION_PHOTO" value="true"/>
 
     <!-- Special Features -->
     <local name="SUPPORT_TAP_AND_HOLD_CAMERA_BUTTON" value="true" />
