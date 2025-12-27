@@ -1,4 +1,4 @@
-KERNEL_REPO="https://github.com/pascua28/android_kernel_samsung_sm7150/releases/download/upstream"
+KERNEL_REPO="https://github.com/artiyailbaraka/Build_KeongBalap/releases/download/20251227-060135"
 
 LOG "- Removing old kernel images"
 [ -f "$WORK_DIR/kernel/boot.img" ] && rm -f "$WORK_DIR/kernel/boot.img"
