@@ -873,29 +873,6 @@ else
     fi
 fi
 
-# SEC_PRODUCT_FEATURE_WLAN_SUPPORT_MOBILEAP_WIFISHARING_LITE
-if ! $SOURCE_WLAN_SUPPORT_MOBILEAP_WIFISHARING_LITE; then
-    if $TARGET_WLAN_SUPPORT_MOBILEAP_WIFISHARING_LITE; then
-        # Check for target flag instead as we've already took care of this SPF above
-        if ! $TARGET_WLAN_SUPPORT_MOBILEAP_POWER_SAVEMODE; then
-            APPLY_PATCH "system" "system/framework/semwifi-service.jar" \
-                "$MODPATH/wifi/power_savemode/semwifi-service.jar/0003-Enable-MOBILEAP_WIFISHARING_LITE-support.patch"
-        else
-            APPLY_PATCH "system" "system/framework/semwifi-service.jar" \
-                "$MODPATH/wifi/wifisharing/semwifi-service.jar/0002-Enable-MOBILEAP_WIFISHARING_LITE-support.patch"
-        fi
-        SMALI_PATCH "system" "system/framework/semwifi-service.jar" \
-            "smali/com/samsung/android/server/wifi/ap/SemSoftApConfiguration.smali" "replaceall" \
-            "SPF_WS_Lite=false" \
-            "SPF_WS_Lite=true"
-    fi
-else
-    if ! $TARGET_WLAN_SUPPORT_MOBILEAP_WIFISHARING_LITE; then
-        # TODO handle this condition
-        LOG_MISSING_PATCHES "SOURCE_WLAN_SUPPORT_MOBILEAP_WIFISHARING_LITE" "TARGET_WLAN_SUPPORT_MOBILEAP_WIFISHARING_LITE"
-    fi
-fi
-
 # SEC_PRODUCT_FEATURE_WLAN_SUPPORT_TWT_CONTROL
 # SEC_PRODUCT_FEATURE_WLAN_SUPPORT_LOWLATENCY
 if $SOURCE_WLAN_SUPPORT_TWT_CONTROL && $SOURCE_WLAN_SUPPORT_LOWLATENCY; then
