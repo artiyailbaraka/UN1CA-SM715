@@ -114,12 +114,6 @@ if [[ "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" != "$TARGET_PRODUCT_SHIPPING_API_LEVE
         > /dev/null
 fi
 
-# SEC_PRODUCT_FEATURE_KNOX_SUPPORT_SDP
-APPLY_PATCH "system" "system/framework/framework.jar" \
-    "$MODPATH/sdp/framework.jar/0001-Nuke-Knox-SDP.patch"
-APPLY_PATCH "system" "system/framework/services.jar" \
-    "$MODPATH/sdp/services.jar/0001-Nuke-Knox-SDP.patch"
-
 # SEC_PRODUCT_FEATURE_KNOX_SUPPORT_DUAL_DAR
 APPLY_PATCH "system" "system/app/Traceur/Traceur.apk" \
     "$MODPATH/ddar/Traceur.apk/0001-Nuke-Knox-DualDAR.patch"
