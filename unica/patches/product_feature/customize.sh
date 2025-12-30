@@ -873,31 +873,6 @@ else
     fi
 fi
 
-# SEC_PRODUCT_FEATURE_WLAN_SUPPORT_TWT_CONTROL
-# SEC_PRODUCT_FEATURE_WLAN_SUPPORT_LOWLATENCY
-if $SOURCE_WLAN_SUPPORT_TWT_CONTROL && $SOURCE_WLAN_SUPPORT_LOWLATENCY; then
-    if ! $TARGET_WLAN_SUPPORT_TWT_CONTROL; then
-        APPLY_PATCH "system" "system/framework/semwifi-service.jar" \
-            "$MODPATH/wifi/twt_control/semwifi-service.jar/0001-Disable-TWT_CONTROL-support.patch"
-
-        if ! $TARGET_WLAN_SUPPORT_LOWLATENCY; then
-            APPLY_PATCH "system" "system/framework/semwifi-service.jar" \
-                "$MODPATH/wifi/twt_control/semwifi-service.jar/0002-Disable-LOWLATENCY-support.patch"
-        fi
-    elif ! $TARGET_WLAN_SUPPORT_LOWLATENCY; then
-        APPLY_PATCH "system" "system/framework/semwifi-service.jar" \
-            "$MODPATH/wifi/lowlatency/semwifi-service.jar/0001-Disable-LOWLATENCY-support.patch"
-    fi
-else
-    if ! $SOURCE_WLAN_SUPPORT_TWT_CONTROL && $TARGET_WLAN_SUPPORT_TWT_CONTROL; then
-        # TODO handle this condition
-        LOG_MISSING_PATCHES "SOURCE_WLAN_SUPPORT_TWT_CONTROL" "TARGET_WLAN_SUPPORT_TWT_CONTROL"
-    elif ! $SOURCE_WLAN_SUPPORT_LOWLATENCY && $TARGET_WLAN_SUPPORT_LOWLATENCY; then
-        # TODO handle this condition
-        LOG_MISSING_PATCHES "SOURCE_WLAN_SUPPORT_LOWLATENCY" "TARGET_WLAN_SUPPORT_LOWLATENCY"
-    fi
-fi
-
 # SEC_PRODUCT_FEATURE_WLAN_SUPPORT_SWITCH_FOR_INDIVIDUAL_APPS
 if $SOURCE_WLAN_SUPPORT_SWITCH_FOR_INDIVIDUAL_APPS; then
     if ! $TARGET_WLAN_SUPPORT_SWITCH_FOR_INDIVIDUAL_APPS; then
