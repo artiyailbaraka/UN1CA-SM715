@@ -1,4 +1,4 @@
-KERNEL_REPO="https://github.com/SAM-715-ID/Bekicot_build/releases/download/20260109-100317"
+KERNEL_REPO="https://github.com/SAM-715-ID/Bekicot_build/releases/download/20260110-232421"
 
 LOG "- Removing old kernel images"
 [ -f "$WORK_DIR/kernel/boot.img" ] && rm -f "$WORK_DIR/kernel/boot.img"
