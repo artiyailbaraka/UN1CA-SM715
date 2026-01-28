@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'keong'
+      - 'idx'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
