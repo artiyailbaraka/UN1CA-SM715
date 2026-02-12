@@ -52,6 +52,7 @@ system/lib64/libmidas_core.camera.samsung.so 0 0 644 capabilities=0x0
 system/lib64/libsaiv_HprFace_cmh_support_jni.camera.samsung.so 0 0 644 capabilities=0x0
 system/lib64/libsamsung_videoengine_9_0.so 0 0 644 capabilities=0x0
 system/lib64/libsec_semRil.so 0 0 644 capabilities=0x0
+system/lib64/libsecimaging_pdk.camera.samsung.so 0 0 644 capabilities=0x0
 system/lib64/libsqlite.so 0 0 644 capabilities=0x0
 system/lib64/libsurfaceutil.camera.samsung.so 0 0 644 capabilities=0x0
 system/lib64/libtensorflowLite.camera.samsung.so 0 0 644 capabilities=0x0

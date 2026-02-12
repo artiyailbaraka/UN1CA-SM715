@@ -51,6 +51,7 @@
 /system/lib64/libsaiv_HprFace_cmh_support_jni\.camera\.samsung\.so u:object_r:system_lib_file:s0
 /system/lib64/libsamsung_videoengine_9_0\.so u:object_r:system_lib_file:s0
 /system/lib64/libsec_semRil\.so u:object_r:system_lib_file:s0
+/system/lib64/libsecimaging_pdk.camera.samsung\.so u:object_r:system_lib_file:s0
 /system/lib64/libsqlite\.so u:object_r:system_lib_file:s0
 /system/lib64/libsurfaceutil\.camera\.samsung\.so u:object_r:system_lib_file:s0
 /system/lib64/libtensorflowLite\.camera\.samsung\.so u:object_r:system_lib_file:s0
