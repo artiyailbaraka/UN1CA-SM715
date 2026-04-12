@@ -5,6 +5,35 @@
 source "$SRC_DIR/scripts/utils/build_utils.sh" || return 1
 # ]
 
+# PRINT_ASSERTIONS
+# Returns the assertions code text to be used in the updater-script file.
+PRINT_ASSERTIONS()
+{
+    if [ -n "$TARGET_ASSERT_MODEL" ]; then
+        local TARGET_ASSERT_MODEL="$TARGET_ASSERT_MODEL"
+        IFS=':' read -r -a TARGET_ASSERT_MODEL <<< "$TARGET_ASSERT_MODEL"
+
+        for i in "${TARGET_ASSERT_MODEL[@]}"; do
+            echo -n 'getprop("ro.boot.em.model") == "'
+            echo -n "$i"
+            echo -n '" || '
+        done
+        echo -n 'abort("E3004: This package is for \"'
+        echo -n "$TARGET_CODENAME"
+        echo    '\" devices; this is a \"" + getprop("ro.product.device") + "\".");'
+    else
+        echo -n 'getprop("ro.product.device") == "'
+        echo -n "$TARGET_CODENAME"
+        echo -n '" || abort("E3004: This package is for \"'
+        echo -n "$TARGET_CODENAME"
+        echo    '\" devices; this is a \"" + getprop("ro.product.device") + "\".");'
+    fi
+
+    if [ -f "$SRC_DIR/target/$TARGET_CODENAME/installer/assertions.edify" ]; then
+        cat "$SRC_DIR/target/$TARGET_CODENAME/installer/assertions.edify"
+    fi
+}
+
 # PRINT_BUILD_INFO <info> [info]
 # Returns the text to be used in the build_info.txt file.
 # Both source and target info can be passed for incremental zips.
