@@ -206,7 +206,7 @@ GENERATE_UPDATER_SCRIPT()
 # ]
 
 if [ "$#" != "2" ]; then
-    echo "Usage: build_flashable_zip <file> <output>" >&2
+    echo "Usage: build_full_ota_zip <file> <output>" >&2
     exit 1
 fi
 
