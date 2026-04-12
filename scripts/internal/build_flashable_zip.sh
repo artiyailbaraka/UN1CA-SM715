@@ -21,23 +21,6 @@ PUBLIC_KEY_PATH+=".x509.pem"
 
 trap 'rm -rf "$TMP_DIR"' EXIT INT
 
-GENERATE_BUILD_INFO()
-{
-    local BUILD_INFO_FILE="$TMP_DIR/build_info.txt"
-
-    {
-        echo -n "device="
-        grep "^device" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
-        echo -n "version="
-        grep "^version" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
-        echo -n "timestamp="
-        grep "^timestamp" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
-        echo -n "security_patch_version="
-        grep "^security_patch" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
-        echo "incremental=0"
-    } > "$BUILD_INFO_FILE"
-}
-
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#4042
 GENERATE_OP_LIST()
 {
@@ -254,7 +237,7 @@ GENERATE_UPDATER_SCRIPT()
             cat "$SRC_DIR/target/$TARGET_CODENAME/installer/assertions.edify"
         fi
 
-        PRINT_HEADER
+        PRINT_HEADER "$BUILD_INFO" || exit 1
 
         # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#4007
         echo -e "\n# --- Start patching dynamic partitions ---\n\n"
@@ -371,50 +354,9 @@ GENERATE_UPDATER_SCRIPT()
         fi
 
         echo    'set_progress(1.000000);'
-        echo    'ui_print("****************************************");'
+        PRINT_SEPARATOR
         echo    'ui_print(" ");'
     } > "$SCRIPT_FILE"
-}
-
-PRINT_HEADER()
-{
-    local ONEUI_VERSION
-    local MAJOR
-    local MINOR
-    local PATCH
-    local SOURCE_FINGERPRINT
-    local TARGET_FINGERPRINT
-
-    ONEUI_VERSION="$(grep "^oneui_version" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
-    MAJOR=$(bc -l <<< "scale=0; $ONEUI_VERSION / 10000")
-    MINOR=$(bc -l <<< "scale=0; $ONEUI_VERSION % 10000 / 100")
-    PATCH=$(bc -l <<< "scale=0; $ONEUI_VERSION % 100")
-    if [[ "$PATCH" != "0" ]]; then
-        ONEUI_VERSION="$MAJOR.$MINOR.$PATCH"
-    else
-        ONEUI_VERSION="$MAJOR.$MINOR"
-    fi
-
-    SOURCE_FINGERPRINT="$(grep "^source_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
-    TARGET_FINGERPRINT="$(grep "^target_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
-
-    echo    'ui_print(" ");'
-    echo    'ui_print("****************************************");'
-    echo -n 'ui_print("'
-    echo -n "UN1CA $ROM_VERSION for $TARGET_NAME"
-    echo    '");'
-    echo    'ui_print("Coded by salvo_giangri @XDAforums");'
-    echo    'ui_print("****************************************");'
-    echo -n 'ui_print("'
-    echo -n "One UI version: $ONEUI_VERSION"
-    echo    '");'
-    echo -n 'ui_print("'
-    echo -n "Source: $SOURCE_FINGERPRINT"
-    echo    '");'
-    echo -n 'ui_print("'
-    echo -n "Target: $TARGET_FINGERPRINT"
-    echo    '");'
-    echo    'ui_print("****************************************");'
 }
 # ]
 
@@ -464,7 +406,7 @@ LOG "- Generating updater-script"
 GENERATE_UPDATER_SCRIPT
 
 LOG "- Generating build_info.txt"
-GENERATE_BUILD_INFO
+PRINT_BUILD_INFO "$BUILD_INFO" > "$TMP_DIR/build_info.txt" || exit 1
 
 LOG "- Generating OTA metadata"
 GENERATE_OTA_METADATA
