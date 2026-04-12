@@ -7,6 +7,9 @@ source "$SRC_DIR/scripts/utils/install_utils.sh" || exit 1
 
 TMP_DIR="$OUT_DIR/target/$TARGET_CODENAME/zip"
 
+KERNEL_BINS="dtbo init_boot vendor_boot"
+PARTITIONS_LIST="system vendor product system_ext odm vendor_dlkm odm_dlkm system_dlkm"
+
 PRIVATE_KEY_PATH="$SRC_DIR/security/"
 PUBLIC_KEY_PATH="$SRC_DIR/security/"
 if $ROM_IS_OFFICIAL; then
@@ -32,24 +35,6 @@ GENERATE_OP_LIST()
     SUPER_GROUP_NAME="$(grep "^super_partition_group" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
     SUPER_GROUP_SIZE="$(grep "^super_${SUPER_GROUP_NAME}_group_size" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
 
-    local HAS_SYSTEM=false
-    local HAS_VENDOR=false
-    local HAS_PRODUCT=false
-    local HAS_SYSTEM_EXT=false
-    local HAS_ODM=false
-    local HAS_VENDOR_DLKM=false
-    local HAS_ODM_DLKM=false
-    local HAS_SYSTEM_DLKM=false
-
-    [ -f "$TMP_DIR/system.img" ] && HAS_SYSTEM=true
-    [ -f "$TMP_DIR/vendor.img" ] && HAS_VENDOR=true
-    [ -f "$TMP_DIR/product.img" ] && HAS_PRODUCT=true
-    [ -f "$TMP_DIR/system_ext.img" ] && HAS_SYSTEM_EXT=true
-    [ -f "$TMP_DIR/odm.img" ] && HAS_ODM=true
-    [ -f "$TMP_DIR/vendor_dlkm.img" ] && HAS_VENDOR_DLKM=true
-    [ -f "$TMP_DIR/odm_dlkm.img" ] && HAS_ODM_DLKM=true
-    [ -f "$TMP_DIR/system_dlkm.img" ] && HAS_SYSTEM_DLKM=true
-
     local PARTITION_SIZE=0
     local OCCUPIED_SPACE=0
 
@@ -58,70 +43,20 @@ GENERATE_OP_LIST()
         echo "remove_all_groups"
         echo "# Add group $SUPER_GROUP_NAME with maximum size $SUPER_GROUP_SIZE"
         echo "add_group $SUPER_GROUP_NAME $SUPER_GROUP_SIZE"
-        $HAS_SYSTEM && echo "# Add partition system to group $SUPER_GROUP_NAME"
-        $HAS_SYSTEM && echo "add system $SUPER_GROUP_NAME"
-        $HAS_VENDOR && echo "# Add partition vendor to group $SUPER_GROUP_NAME"
-        $HAS_VENDOR && echo "add vendor $SUPER_GROUP_NAME"
-        $HAS_PRODUCT && echo "# Add partition product to group $SUPER_GROUP_NAME"
-        $HAS_PRODUCT && echo "add product $SUPER_GROUP_NAME"
-        $HAS_SYSTEM_EXT && echo "# Add partition system_ext to group $SUPER_GROUP_NAME"
-        $HAS_SYSTEM_EXT && echo "add system_ext $SUPER_GROUP_NAME"
-        $HAS_ODM && echo "# Add partition odm to group $SUPER_GROUP_NAME"
-        $HAS_ODM && echo "add odm $SUPER_GROUP_NAME"
-        $HAS_VENDOR_DLKM && echo "# Add partition vendor_dlkm to group $SUPER_GROUP_NAME"
-        $HAS_VENDOR_DLKM && echo "add vendor_dlkm $SUPER_GROUP_NAME"
-        $HAS_ODM_DLKM && echo "# Add partition odm_dlkm to group $SUPER_GROUP_NAME"
-        $HAS_ODM_DLKM && echo "add odm_dlkm $SUPER_GROUP_NAME"
-        $HAS_SYSTEM_DLKM && echo "# Add partition system_dlkm to group $SUPER_GROUP_NAME"
-        $HAS_SYSTEM_DLKM && echo "add system_dlkm $SUPER_GROUP_NAME"
-        if $HAS_SYSTEM; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/system.img")"
-            echo "# Grow partition system from 0 to $PARTITION_SIZE"
-            echo "resize system $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_VENDOR; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/vendor.img")"
-            echo "# Grow partition vendor from 0 to $PARTITION_SIZE"
-            echo "resize vendor $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_PRODUCT; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/product.img")"
-            echo "# Grow partition product from 0 to $PARTITION_SIZE"
-            echo "resize product $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_SYSTEM_EXT; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/system_ext.img")"
-            echo "# Grow partition system_ext from 0 to $PARTITION_SIZE"
-            echo "resize system_ext $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_ODM; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/odm.img")"
-            echo "# Grow partition odm from 0 to $PARTITION_SIZE"
-            echo "resize odm $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_VENDOR_DLKM; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/vendor_dlkm.img")"
-            echo "# Grow partition vendor_dlkm from 0 to $PARTITION_SIZE"
-            echo "resize vendor_dlkm $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_ODM_DLKM; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/odm_dlkm.img")"
-            echo "# Grow partition odm_dlkm from 0 to $PARTITION_SIZE"
-            echo "resize odm_dlkm $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
-        if $HAS_SYSTEM_DLKM; then
-            PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/system_dlkm.img")"
-            echo "# Grow partition system_dlkm from 0 to $PARTITION_SIZE"
-            echo "resize system_dlkm $PARTITION_SIZE"
-            OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
-        fi
+        for p in $PARTITIONS_LIST; do
+            if [ -f "$TMP_DIR/$p.img" ]; then
+                echo "# Add partition $p to group $SUPER_GROUP_NAME"
+                echo "add $p $SUPER_GROUP_NAME"
+            fi
+        done
+        for p in $PARTITIONS_LIST; do
+            if [ -f "$TMP_DIR/$p.img" ]; then
+                PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/$p.img")"
+                echo "# Grow partition $p from 0 to $PARTITION_SIZE"
+                echo "resize $p $PARTITION_SIZE"
+                OCCUPIED_SPACE=$((OCCUPIED_SPACE + PARTITION_SIZE))
+            fi
+        done
     } > "$OP_LIST_FILE"
 
     if [[ "$OCCUPIED_SPACE" -gt "$SUPER_GROUP_SIZE" ]]; then
@@ -139,14 +74,14 @@ GENERATE_OTA_METADATA()
     local INCREMENTAL
     local TIMESTAMP
     local SECURITY_PATCH_LEVEL
-    local SOURCE_FINGERPRINT
+    local FINGERPRINT
 
     DEVICE="$(grep "^device" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
     RELEASE="$(grep "^os_version" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
     INCREMENTAL="$(grep "^build_incremental" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
     TIMESTAMP="$(grep "^build_date" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
     SECURITY_PATCH_LEVEL="$(grep "^security_patch" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
-    SOURCE_FINGERPRINT="$(grep "^source_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    FINGERPRINT="$(grep "^source_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
 
     mkdir -p "$TMP_DIR/META-INF/com/android"
 
@@ -157,7 +92,7 @@ GENERATE_OTA_METADATA()
         MESSAGE+="type: BLOCK"
         MESSAGE+=", precondition: {device: \\\"$DEVICE\\\"}"
         MESSAGE+=", postcondition: {device: \\\"$DEVICE\\\""
-        MESSAGE+=", build: \\\"$SOURCE_FINGERPRINT\\\""
+        MESSAGE+=", build: \\\"$FINGERPRINT\\\""
         MESSAGE+=", build_incremental: \\\"$INCREMENTAL\\\""
         MESSAGE+=", timestamp: $TIMESTAMP"
         MESSAGE+=", sdk_level: \\\"$RELEASE\\\""
@@ -170,7 +105,7 @@ GENERATE_OTA_METADATA()
     {
         echo "ota-required-cache=0"
         echo "ota-type=BLOCK"
-        echo "post-build=$SOURCE_FINGERPRINT"
+        echo "post-build=$FINGERPRINT"
         echo "post-build-incremental=$INCREMENTAL"
         echo "post-sdk-level=$RELEASE"
         echo "post-security-patch-level=$SECURITY_PATCH_LEVEL"
@@ -182,37 +117,16 @@ GENERATE_OTA_METADATA()
 GENERATE_UPDATER_SCRIPT()
 {
     local SCRIPT_FILE="$TMP_DIR/META-INF/com/google/android/updater-script"
-    local BROTLI_EXTENSION
-    $DEBUG || BROTLI_EXTENSION=".br"
 
     local PARTITION_COUNT=0
-    local HAS_BOOT=false
-    local HAS_DTBO=false
-    local HAS_INIT_BOOT=false
-    local HAS_VENDOR_BOOT=false
-    local HAS_SUPER_EMPTY=false
-    local HAS_SYSTEM=false
-    local HAS_VENDOR=false
-    local HAS_PRODUCT=false
-    local HAS_SYSTEM_EXT=false
-    local HAS_ODM=false
-    local HAS_VENDOR_DLKM=false
-    local HAS_ODM_DLKM=false
-    local HAS_SYSTEM_DLKM=false
 
-    [ -f "$TMP_DIR/boot.img" ] && HAS_BOOT=true
-    [ -f "$TMP_DIR/dtbo.img" ] && HAS_DTBO=true
-    [ -f "$TMP_DIR/init_boot.img" ] && HAS_INIT_BOOT=true
-    [ -f "$TMP_DIR/vendor_boot.img" ] && HAS_VENDOR_BOOT=true
-    [ -f "$TMP_DIR/unsparse_super_empty.img" ] && HAS_SUPER_EMPTY=true
-    [ -f "$TMP_DIR/system.new.dat${BROTLI_EXTENSION}" ] && HAS_SYSTEM=true
-    [ -f "$TMP_DIR/vendor.new.dat${BROTLI_EXTENSION}" ] && HAS_VENDOR=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
-    [ -f "$TMP_DIR/product.new.dat${BROTLI_EXTENSION}" ] && HAS_PRODUCT=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
-    [ -f "$TMP_DIR/system_ext.new.dat${BROTLI_EXTENSION}" ] && HAS_SYSTEM_EXT=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
-    [ -f "$TMP_DIR/odm.new.dat${BROTLI_EXTENSION}" ] && HAS_ODM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
-    [ -f "$TMP_DIR/vendor_dlkm.new.dat${BROTLI_EXTENSION}" ] && HAS_VENDOR_DLKM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
-    [ -f "$TMP_DIR/odm_dlkm.new.dat${BROTLI_EXTENSION}" ] && HAS_ODM_DLKM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
-    [ -f "$TMP_DIR/system_dlkm.new.dat${BROTLI_EXTENSION}" ] && HAS_SYSTEM_DLKM=true && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/vendor.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/product.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/system_ext.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/odm.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/vendor_dlkm.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/odm_dlkm.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
+    [ -f "$TMP_DIR/system_dlkm.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
 
     {
         PRINT_ASSERTIONS
@@ -220,120 +134,74 @@ GENERATE_UPDATER_SCRIPT()
         PRINT_HEADER "$BUILD_INFO" || exit 1
 
         # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#4007
-        echo -e "\n# --- Start patching dynamic partitions ---\n\n"
-        echo -e "# Update dynamic partition metadata\n"
+        echo -e "\n# --- Start patching dynamic partitions ---\n"
+        echo -e "\n# Update dynamic partition metadata\n"
         echo -n 'assert(update_dynamic_partitions(package_extract_file("dynamic_partitions_op_list")'
-        if $HAS_SUPER_EMPTY; then
+        if [ -f "$TMP_DIR/unsparse_super_empty.img" ]; then
             # https://github.com/LineageOS/android_build/commit/98549f6893c3a93057e2d4cdd1015a93e9473b16
             # https://github.com/LineageOS/android_bootable_deprecated-ota/commit/e97be4333bd3824b8561c9637e9e6de28bc29da0
             echo -n ', package_extract_file("unsparse_super_empty.img")'
         fi
         echo    '));'
-        if $HAS_SYSTEM; then
-            echo -e "\n# Patch partition system\n"
-            echo    'ui_print("Patching system image unconditionally...");'
-            echo -n 'show_progress(0.'
-            echo -n "$(bc -l <<< "9 - $PARTITION_COUNT")"
-            echo    '00000, 0);'
-            echo -n 'block_image_update(map_partition("system"), package_extract_file("system.transfer.list"), "'
-            echo -n "system.new.dat${BROTLI_EXTENSION}"
-            echo    '", "system.patch.dat") ||'
-            echo    '  abort("E1001: Failed to update system image.");'
-        fi
-        if $HAS_VENDOR; then
-            echo -e "\n# Patch partition vendor\n"
-            echo    'ui_print("Patching vendor image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("vendor"), package_extract_file("vendor.transfer.list"), "'
-            echo -n "vendor.new.dat${BROTLI_EXTENSION}"
-            echo    '", "vendor.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update vendor image.");'
-        fi
-        if $HAS_PRODUCT; then
-            echo -e "\n# Patch partition product\n"
-            echo    'ui_print("Patching product image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("product"), package_extract_file("product.transfer.list"), "'
-            echo -n "product.new.dat${BROTLI_EXTENSION}"
-            echo    '", "product.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update product image.");'
-        fi
-        if $HAS_SYSTEM_EXT; then
-            echo -e "\n# Patch partition system_ext\n"
-            echo    'ui_print("Patching system_ext image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("system_ext"), package_extract_file("system_ext.transfer.list"), "'
-            echo -n "system_ext.new.dat${BROTLI_EXTENSION}"
-            echo    '", "system_ext.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update system_ext image.");'
-        fi
-        if $HAS_ODM; then
-            echo -e "\n# Patch partition odm\n"
-            echo    'ui_print("Patching odm image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("odm"), package_extract_file("odm.transfer.list"), "'
-            echo -n "odm.new.dat${BROTLI_EXTENSION}"
-            echo    '", "odm.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update odm image.");'
-        fi
-        if $HAS_VENDOR_DLKM; then
-            echo -e "\n# Patch partition vendor_dlkm\n"
-            echo    'ui_print("Patching vendor_dlkm image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("vendor_dlkm"), package_extract_file("vendor_dlkm.transfer.list"), "'
-            echo -n "vendor_dlkm.new.dat${BROTLI_EXTENSION}"
-            echo    '", "vendor_dlkm.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update vendor_dlkm image.");'
-        fi
-        if $HAS_ODM_DLKM; then
-            echo -e "\n# Patch partition odm_dlkm\n"
-            echo    'ui_print("Patching odm_dlkm image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("odm_dlkm"), package_extract_file("odm_dlkm.transfer.list"), "'
-            echo -n "odm_dlkm.new.dat${BROTLI_EXTENSION}"
-            echo    '", "odm_dlkm.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update odm_dlkm image.");'
-        fi
-        if $HAS_SYSTEM_DLKM; then
-            echo -e "\n# Patch partition system_dlkm\n"
-            echo    'ui_print("Patching system_dlkm image unconditionally...");'
-            echo    'show_progress(0.100000, 0);'
-            echo -n 'block_image_update(map_partition("system_dlkm"), package_extract_file("system_dlkm.transfer.list"), "'
-            echo -n "system_dlkm.new.dat${BROTLI_EXTENSION}"
-            echo    '", "system_dlkm.patch.dat") ||'
-            echo    '  abort("E2001: Failed to update system_dlkm image.");'
-        fi
+        for p in $PARTITIONS_LIST; do
+            if [ ! -f "$TMP_DIR/$p.transfer.list" ]; then
+                continue
+            fi
+            echo -e "\n# Patch partition $p\n"
+            echo -n 'ui_print("Patching '
+            echo -n "$p image unconditionally..."
+            echo    '");'
+            if [[ "$p" == "system" ]]; then
+                echo -n 'show_progress(0.'
+                echo -n "$(bc -l <<< "9 - $PARTITION_COUNT")"
+                echo    '00000, 0);'
+            else
+                echo    'show_progress(0.100000, 0);'
+            fi
+            echo -n 'block_image_update(map_partition("'
+            echo -n "$p"
+            echo -n '"), package_extract_file("'
+            echo -n "$p.transfer.list"
+            echo -n '"), "'
+            echo -n "$p.new.dat"
+            [ -f "$TMP_DIR/$p.new.dat.br" ] && echo -n ".br"
+            echo -n '", "'
+            echo -n "$p.patch.dat"
+            echo    '") ||'
+            echo -n '  abort("'
+            [[ "$p" == "system" ]] && echo -n "E1001" || echo -n "E2001"
+            echo -n ": Failed to update $p image."
+            echo    '");'
+        done
         echo -e "\n# --- End patching dynamic partitions ---\n"
-        if $HAS_DTBO; then
-            echo    'ui_print("Full Patching dtbo.img img...");'
-            echo -n 'package_extract_file("dtbo.img", "'
-            echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
-            echo    '/dtbo");'
-        fi
-        if $HAS_INIT_BOOT; then
-            echo    'ui_print("Full Patching init_boot.img img...");'
-            echo -n 'package_extract_file("init_boot.img", "'
-            echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
-            echo    '/init_boot");'
-        fi
-        if $HAS_VENDOR_BOOT; then
-            echo    'ui_print("Full Patching vendor_boot.img img...");'
-            echo -n 'package_extract_file("vendor_boot.img", "'
-            echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
-            echo    '/vendor_boot");'
-        fi
-        if $HAS_BOOT; then
+
+        for b in $KERNEL_BINS; do
+            if [ -f "$TMP_DIR/$b.img" ]; then
+                echo -n 'ui_print("Full Patching '
+                echo -n "$b.img img..."
+                echo    '");'
+                echo -n 'package_extract_file("'
+                echo -n "$b.img"
+                echo -n '", "'
+                echo -n "$TARGET_OS_BOOT_DEVICE_PATH/$b"
+                echo    '");'
+            fi
+        done
+        if [ -f "$TMP_DIR/boot.img" ]; then
             echo    'ui_print("Installing boot image...");'
             echo -n 'package_extract_file("boot.img", "'
             echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
             echo    '/boot");'
         fi
 
+        echo    'show_progress(0.100000, 10);'
+
         if [ -f "$SRC_DIR/target/$TARGET_CODENAME/installer/install-end.edify" ]; then
             cat "$SRC_DIR/target/$TARGET_CODENAME/installer/install-end.edify"
         fi
 
         echo    'set_progress(1.000000);'
+
         PRINT_SEPARATOR
         echo    'ui_print(" ");'
     } > "$SCRIPT_FILE"
@@ -366,21 +234,22 @@ rm -f "$TMP_DIR/build_info.txt"
 LOG "- Generating dynamic_partitions_op_list"
 GENERATE_OP_LIST
 
-while IFS= read -r f; do
-    PARTITION="$(basename "$f" | sed "s/.img//g")"
-    IS_VALID_PARTITION_NAME "$PARTITION" || continue
+for p in $PARTITIONS_LIST; do
+    if [ ! -f "$TMP_DIR/$p.img" ]; then
+        continue
+    fi
 
-    LOG "- Converting $PARTITION.img to $PARTITION.new.dat"
-    EVAL "img2sdat -o \"$TMP_DIR\" -B \"$TMP_DIR/$PARTITION.map\" \"$f\"" || exit 1
-    rm -f "$f" "$TMP_DIR/$PARTITION.map"
+    LOG "- Converting $p.img to $p.new.dat"
+    EVAL "img2sdat -o \"$TMP_DIR\" --tgt-block-map \"$TMP_DIR/$p.map\" \"$TMP_DIR/$p.img\"" || exit 1
+    rm -f "$TMP_DIR/$p.img" "$TMP_DIR/$p.map"
 
     if ! $DEBUG; then
-        LOG "- Compressing $PARTITION.new.dat"
+        LOG "- Compressing $p.new.dat"
         # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#3585
-        EVAL "brotli --quality=6 --output=\"$TMP_DIR/$PARTITION.new.dat.br\" \"$TMP_DIR/$PARTITION.new.dat\"" || exit 1
-        rm -f "$TMP_DIR/$PARTITION.new.dat"
+        EVAL "brotli --quality=6 --output=\"$TMP_DIR/$p.new.dat.br\" \"$TMP_DIR/$p.new.dat\"" || exit 1
+        rm -f "$TMP_DIR/$p.new.dat"
     fi
-done < <(find "$TMP_DIR" -maxdepth 1 -type f -name "*.img")
+done
 
 LOG "- Generating updater-script"
 GENERATE_UPDATER_SCRIPT
