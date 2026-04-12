@@ -5,24 +5,7 @@
 # [
 source "$SRC_DIR/scripts/utils/build_utils.sh" || exit 1
 
-SOURCE_FIRMWARE_PATH="$(cut -d "/" -f 1 -s <<< "$SOURCE_FIRMWARE")_$(cut -d "/" -f 2 -s <<< "$SOURCE_FIRMWARE")"
-TARGET_FIRMWARE_PATH="$(cut -d "/" -f 1 -s <<< "$TARGET_FIRMWARE")_$(cut -d "/" -f 2 -s <<< "$TARGET_FIRMWARE")"
-
-SOURCE_FINGERPRINT="$(GET_PROP "$FW_DIR/$SOURCE_FIRMWARE_PATH/system/system/build.prop" "ro.system.build.fingerprint")"
-SOURCE_FINGERPRINT="${SOURCE_FINGERPRINT//$(GET_PROP "$FW_DIR/$SOURCE_FIRMWARE_PATH/system/system/build.prop" "ro.build.product")/$(GET_PROP "$FW_DIR/$SOURCE_FIRMWARE_PATH/vendor/build.prop" "ro.product.vendor.device")}"
-TARGET_FINGERPRINT="$(GET_PROP "$FW_DIR/$TARGET_FIRMWARE_PATH/system/system/build.prop" "ro.system.build.fingerprint")"
-TARGET_FINGERPRINT="${TARGET_FINGERPRINT//$(GET_PROP "$FW_DIR/$TARGET_FIRMWARE_PATH/system/system/build.prop" "ro.build.product")/$(GET_PROP "$FW_DIR/$TARGET_FIRMWARE_PATH/vendor/build.prop" "ro.product.vendor.device")}"
-
 TMP_DIR="$OUT_DIR/target/$TARGET_CODENAME/zip"
-
-ZIP_FILE_SUFFIX="-sign.zip"
-$DEBUG && ! $ROM_IS_OFFICIAL && ZIP_FILE_SUFFIX=".zip"
-
-ZIP_FILE_NAME="UN1CA_${ROM_VERSION}_$(date +%Y%m%d)_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
-while [ -f "$OUT_DIR/$ZIP_FILE_NAME" ]; do
-    INCREMENTAL=$((INCREMENTAL + 1))
-    ZIP_FILE_NAME="UN1CA_${ROM_VERSION}_$(date +%Y%m%d)-${INCREMENTAL}_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
-done
 
 PRIVATE_KEY_PATH="$SRC_DIR/security/"
 PUBLIC_KEY_PATH="$SRC_DIR/security/"
@@ -38,59 +21,19 @@ PUBLIC_KEY_PATH+=".x509.pem"
 
 trap 'rm -rf "$TMP_DIR"' EXIT INT
 
-# https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/build_super_image.py#72
-BUILD_SUPER_EMPTY()
-{
-    local CMD
-
-    CMD="lpmake"
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/build_super_image.py#75
-    CMD+=" --metadata-size \"65536\""
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/core/config.mk#1033
-    CMD+=" --super-name \"super\""
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/build_super_image.py#85
-    CMD+=" --metadata-slots \"2\""
-    CMD+=" --device \"super:$TARGET_SUPER_PARTITION_SIZE\""
-    CMD+=" --group \"$TARGET_SUPER_GROUP_NAME:$(GET_SUPER_GROUP_SIZE)\""
-    if [ -f "$TMP_DIR/system.img" ]; then
-        CMD+=" --partition \"system:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/vendor.img" ]; then
-        CMD+=" --partition \"vendor:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/product.img" ]; then
-        CMD+=" --partition \"product:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/system_ext.img" ]; then
-        CMD+=" --partition \"system_ext:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/odm.img" ]; then
-        CMD+=" --partition \"odm:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/vendor_dlkm.img" ]; then
-        CMD+=" --partition \"vendor_dlkm:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/odm_dlkm.img" ]; then
-        CMD+=" --partition \"odm_dlkm:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    if [ -f "$TMP_DIR/system_dlkm.img" ]; then
-        CMD+=" --partition \"system_dlkm:readonly:0:$TARGET_SUPER_GROUP_NAME\""
-    fi
-    CMD+=" --output \"$TMP_DIR/unsparse_super_empty.img\""
-
-    EVAL "$CMD" || exit 1
-}
-
 GENERATE_BUILD_INFO()
 {
     local BUILD_INFO_FILE="$TMP_DIR/build_info.txt"
 
     {
-        echo "device=$TARGET_CODENAME"
-        echo "version=$ROM_VERSION"
-        echo "timestamp=$ROM_BUILD_TIMESTAMP"
-        echo "security_patch_version=$(GET_PROP "system" "ro.build.version.security_patch")"
-        # TODO
+        echo -n "device="
+        grep "^device" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
+        echo -n "version="
+        grep "^version" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
+        echo -n "timestamp="
+        grep "^timestamp" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
+        echo -n "security_patch_version="
+        grep "^security_patch" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s
         echo "incremental=0"
     } > "$BUILD_INFO_FILE"
 }
@@ -99,6 +42,12 @@ GENERATE_BUILD_INFO()
 GENERATE_OP_LIST()
 {
     local OP_LIST_FILE="$TMP_DIR/dynamic_partitions_op_list"
+
+    local SUPER_GROUP_NAME
+    local SUPER_GROUP_SIZE
+
+    SUPER_GROUP_NAME="$(grep "^super_partition_group" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    SUPER_GROUP_SIZE="$(grep "^super_${SUPER_GROUP_NAME}_group_size" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
 
     local HAS_SYSTEM=false
     local HAS_VENDOR=false
@@ -124,24 +73,24 @@ GENERATE_OP_LIST()
     {
         echo "# Remove all existing dynamic partitions and groups before applying full OTA"
         echo "remove_all_groups"
-        echo "# Add group $TARGET_SUPER_GROUP_NAME with maximum size $(GET_SUPER_GROUP_SIZE)"
-        echo "add_group $TARGET_SUPER_GROUP_NAME $(GET_SUPER_GROUP_SIZE)"
-        $HAS_SYSTEM && echo "# Add partition system to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_SYSTEM && echo "add system $TARGET_SUPER_GROUP_NAME"
-        $HAS_VENDOR && echo "# Add partition vendor to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_VENDOR && echo "add vendor $TARGET_SUPER_GROUP_NAME"
-        $HAS_PRODUCT && echo "# Add partition product to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_PRODUCT && echo "add product $TARGET_SUPER_GROUP_NAME"
-        $HAS_SYSTEM_EXT && echo "# Add partition system_ext to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_SYSTEM_EXT && echo "add system_ext $TARGET_SUPER_GROUP_NAME"
-        $HAS_ODM && echo "# Add partition odm to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_ODM && echo "add odm $TARGET_SUPER_GROUP_NAME"
-        $HAS_VENDOR_DLKM && echo "# Add partition vendor_dlkm to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_VENDOR_DLKM && echo "add vendor_dlkm $TARGET_SUPER_GROUP_NAME"
-        $HAS_ODM_DLKM && echo "# Add partition odm_dlkm to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_ODM_DLKM && echo "add odm_dlkm $TARGET_SUPER_GROUP_NAME"
-        $HAS_SYSTEM_DLKM && echo "# Add partition system_dlkm to group $TARGET_SUPER_GROUP_NAME"
-        $HAS_SYSTEM_DLKM && echo "add system_dlkm $TARGET_SUPER_GROUP_NAME"
+        echo "# Add group $SUPER_GROUP_NAME with maximum size $SUPER_GROUP_SIZE"
+        echo "add_group $SUPER_GROUP_NAME $SUPER_GROUP_SIZE"
+        $HAS_SYSTEM && echo "# Add partition system to group $SUPER_GROUP_NAME"
+        $HAS_SYSTEM && echo "add system $SUPER_GROUP_NAME"
+        $HAS_VENDOR && echo "# Add partition vendor to group $SUPER_GROUP_NAME"
+        $HAS_VENDOR && echo "add vendor $SUPER_GROUP_NAME"
+        $HAS_PRODUCT && echo "# Add partition product to group $SUPER_GROUP_NAME"
+        $HAS_PRODUCT && echo "add product $SUPER_GROUP_NAME"
+        $HAS_SYSTEM_EXT && echo "# Add partition system_ext to group $SUPER_GROUP_NAME"
+        $HAS_SYSTEM_EXT && echo "add system_ext $SUPER_GROUP_NAME"
+        $HAS_ODM && echo "# Add partition odm to group $SUPER_GROUP_NAME"
+        $HAS_ODM && echo "add odm $SUPER_GROUP_NAME"
+        $HAS_VENDOR_DLKM && echo "# Add partition vendor_dlkm to group $SUPER_GROUP_NAME"
+        $HAS_VENDOR_DLKM && echo "add vendor_dlkm $SUPER_GROUP_NAME"
+        $HAS_ODM_DLKM && echo "# Add partition odm_dlkm to group $SUPER_GROUP_NAME"
+        $HAS_ODM_DLKM && echo "add odm_dlkm $SUPER_GROUP_NAME"
+        $HAS_SYSTEM_DLKM && echo "# Add partition system_dlkm to group $SUPER_GROUP_NAME"
+        $HAS_SYSTEM_DLKM && echo "add system_dlkm $SUPER_GROUP_NAME"
         if $HAS_SYSTEM; then
             PARTITION_SIZE="$(GET_IMAGE_SIZE "$TMP_DIR/system.img")"
             echo "# Grow partition system from 0 to $PARTITION_SIZE"
@@ -192,8 +141,8 @@ GENERATE_OP_LIST()
         fi
     } > "$OP_LIST_FILE"
 
-    if [[ "$OCCUPIED_SPACE" -gt "$(GET_SUPER_GROUP_SIZE)" ]]; then
-        LOGE "OS size ($OCCUPIED_SPACE) is bigger than the target group size ($(GET_SUPER_GROUP_SIZE))"
+    if [[ "$OCCUPIED_SPACE" -gt "$SUPER_GROUP_SIZE" ]]; then
+        LOGE "OS size ($OCCUPIED_SPACE) is bigger than the target group size ($SUPER_GROUP_SIZE)"
         exit 1
     fi
 }
@@ -202,15 +151,19 @@ GENERATE_OTA_METADATA()
 {
     local PROTO_FILE="$SRC_DIR/external/android-tools/vendor/build/tools/releasetools/ota_metadata.proto"
 
-    local INCREMENTAL
+    local DEVICE
     local RELEASE
-    local SECURITY_PATCH_LEVEL
+    local INCREMENTAL
     local TIMESTAMP
+    local SECURITY_PATCH_LEVEL
+    local SOURCE_FINGERPRINT
 
-    INCREMENTAL="$(GET_PROP "system" "ro.build.version.incremental")"
-    RELEASE="$(GET_PROP "system" "ro.build.version.release")"
-    SECURITY_PATCH_LEVEL="$(GET_PROP "system" "ro.build.version.security_patch")"
-    TIMESTAMP="$(GET_PROP "system" "ro.build.date.utc")"
+    DEVICE="$(grep "^device" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    RELEASE="$(grep "^os_version" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    INCREMENTAL="$(grep "^build_incremental" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    TIMESTAMP="$(grep "^build_date" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    SECURITY_PATCH_LEVEL="$(grep "^security_patch" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    SOURCE_FINGERPRINT="$(grep "^source_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
 
     mkdir -p "$TMP_DIR/META-INF/com/android"
 
@@ -219,8 +172,8 @@ GENERATE_OTA_METADATA()
         local MESSAGE
 
         MESSAGE+="type: BLOCK"
-        MESSAGE+=", precondition: {device: \\\"$TARGET_CODENAME\\\"}"
-        MESSAGE+=", postcondition: {device: \\\"$TARGET_CODENAME\\\""
+        MESSAGE+=", precondition: {device: \\\"$DEVICE\\\"}"
+        MESSAGE+=", postcondition: {device: \\\"$DEVICE\\\""
         MESSAGE+=", build: \\\"$SOURCE_FINGERPRINT\\\""
         MESSAGE+=", build_incremental: \\\"$INCREMENTAL\\\""
         MESSAGE+=", timestamp: $TIMESTAMP"
@@ -239,7 +192,7 @@ GENERATE_OTA_METADATA()
         echo "post-sdk-level=$RELEASE"
         echo "post-security-patch-level=$SECURITY_PATCH_LEVEL"
         echo "post-timestamp=$TIMESTAMP"
-        echo "pre-device=$TARGET_CODENAME"
+        echo "pre-device=$DEVICE"
     } > "$TMP_DIR/META-INF/com/android/metadata"
 }
 
@@ -423,26 +376,16 @@ GENERATE_UPDATER_SCRIPT()
     } > "$SCRIPT_FILE"
 }
 
-GET_SUPER_GROUP_SIZE()
-{
-    local GROUP_NAME="$TARGET_SUPER_GROUP_NAME"
-    GROUP_NAME="$(tr "[:lower:]" "[:upper:]" <<< "$TARGET_SUPER_GROUP_NAME")"
-
-    local VAR="TARGET_${GROUP_NAME}_SIZE"
-
-    _CHECK_NON_EMPTY_PARAM "$VAR" "${!VAR}" || exit 1
-
-    echo "${!VAR}"
-}
-
 PRINT_HEADER()
 {
     local ONEUI_VERSION
     local MAJOR
     local MINOR
     local PATCH
+    local SOURCE_FINGERPRINT
+    local TARGET_FINGERPRINT
 
-    ONEUI_VERSION="$(GET_PROP "system" "ro.build.version.oneui")"
+    ONEUI_VERSION="$(grep "^oneui_version" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
     MAJOR=$(bc -l <<< "scale=0; $ONEUI_VERSION / 10000")
     MINOR=$(bc -l <<< "scale=0; $ONEUI_VERSION % 10000 / 100")
     PATCH=$(bc -l <<< "scale=0; $ONEUI_VERSION % 100")
@@ -451,6 +394,9 @@ PRINT_HEADER()
     else
         ONEUI_VERSION="$MAJOR.$MINOR"
     fi
+
+    SOURCE_FINGERPRINT="$(grep "^source_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+    TARGET_FINGERPRINT="$(grep "^target_fingerprint" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
 
     echo    'ui_print(" ");'
     echo    'ui_print("****************************************");'
@@ -499,23 +445,28 @@ SIGN_IMAGE_WITH_AVB()
 }
 # ]
 
+if [ "$#" != "2" ]; then
+    echo "Usage: build_flashable_zip <file> <output>" >&2
+    exit 1
+fi
+
+TARGET_ZIP="$1"
+OUTPUT_FILE="$2"
+
+if ! unzip -l "$TARGET_ZIP" | grep -q "build_info.txt" || unzip -l "$TARGET_ZIP" | grep -q "META-INF"; then
+    LOGE "File not valid: ${TARGET_ZIP//$SRC_DIR\//}"
+    exit 1
+fi
+
 [ -d "$TMP_DIR" ] && rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR/META-INF/com/google/android"
 cp -a "$SRC_DIR/prebuilts/bootable/deprecated-ota/updater" "$TMP_DIR/META-INF/com/google/android/update-binary"
 
-LOG_STEP_IN "- Building OS partitions"
-while IFS= read -r f; do
-    PARTITION=$(basename "$f")
-    IS_VALID_PARTITION_NAME "$PARTITION" || continue
+LOG "- Extracting target files"
+EVAL "unzip -o \"$TARGET_ZIP\" -d \"$TMP_DIR\"" || exit 1
 
-    "$SRC_DIR/scripts/build_fs_image.sh" "$TARGET_OS_FILE_SYSTEM_TYPE" \
-        -o "$TMP_DIR/$PARTITION.img" -m -S \
-        "$WORK_DIR/$PARTITION" "$WORK_DIR/configs/file_context-$PARTITION" "$WORK_DIR/configs/fs_config-$PARTITION" || exit 1
-done < <(find "$WORK_DIR" -maxdepth 1 -type d)
-LOG_STEP_OUT
-
-LOG "- Building unsparse_super_empty.img"
-BUILD_SUPER_EMPTY
+BUILD_INFO="$(cat "$TMP_DIR/build_info.txt")"
+rm -f "$TMP_DIR/build_info.txt"
 
 LOG "- Generating dynamic_partitions_op_list"
 GENERATE_OP_LIST
@@ -535,22 +486,6 @@ while IFS= read -r f; do
         rm -f "$TMP_DIR/$PARTITION.new.dat"
     fi
 done < <(find "$TMP_DIR" -maxdepth 1 -type f -name "*.img")
-
-if [ -d "$WORK_DIR/kernel" ]; then
-    while IFS= read -r f; do
-        IMG="$(basename "$f")"
-
-        LOG_STEP_IN "- Copying $IMG"
-
-        cp -a "$WORK_DIR/kernel/$IMG" "$TMP_DIR/$IMG"
-
-        if ! $TARGET_DISABLE_AVB_SIGNING; then
-            SIGN_IMAGE_WITH_AVB "$TMP_DIR/$IMG"
-        fi
-
-        LOG_STEP_OUT
-    done < <(find "$WORK_DIR/kernel" -maxdepth 1 -type f -name "*.img")
-fi
 
 LOG "- Generating updater-script"
 GENERATE_UPDATER_SCRIPT
@@ -585,10 +520,10 @@ EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=3 -mmt=$(nproc) $TMP_DIR/rom.zip -r * -x
 
 if ! $DEBUG || $ROM_IS_OFFICIAL; then
     LOG "- Signing zip"
-    EVAL "signapk -w \"$PUBLIC_KEY_PATH\" \"$PRIVATE_KEY_PATH\" \"$TMP_DIR/rom.zip\" \"$OUT_DIR/$ZIP_FILE_NAME\"" || exit 1
+    EVAL "signapk -w \"$PUBLIC_KEY_PATH\" \"$PRIVATE_KEY_PATH\" \"$TMP_DIR/rom.zip\" \"$OUTPUT_FILE\"" || exit 1
     rm -f "$TMP_DIR/rom.zip"
 else
-    mv -f "$TMP_DIR/rom.zip" "$OUT_DIR/$ZIP_FILE_NAME"
+    mv -f "$TMP_DIR/rom.zip" "$OUTPUT_FILE"
 fi
 
 exit 0
