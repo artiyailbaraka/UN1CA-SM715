@@ -5,12 +5,6 @@
 # [
 source "$SRC_DIR/scripts/utils/install_utils.sh" || exit 1
 
-ZIP_FILE_NAME="${TARGET_CODENAME}_${ROM_VERSION}-target_files.zip"
-while [ -f "$OUT_DIR/$ZIP_FILE_NAME" ]; do
-    INCREMENTAL=$((INCREMENTAL + 1))
-    ZIP_FILE_NAME="${TARGET_CODENAME}_${ROM_VERSION}-target_files-${INCREMENTAL}.zip"
-done
-
 trap 'rm -rf "$TMP_DIR"' EXIT INT
 
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/build_super_image.py#72
@@ -108,6 +102,13 @@ GET_SUPER_GROUP_SIZE()
 }
 # ]
 
+if [ "$#" != "1" ]; then
+    echo "Usage: create_target_files_zip <output>" >&2
+    exit 1
+fi
+
+OUTPUT_FILE="$1"
+
 [ -d "$TMP_DIR" ] && rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR"
 
@@ -144,6 +145,7 @@ LOG "- Generating build_info.txt"
 GENERATE_BUILD_INFO
 
 LOG "- Creating zip"
-EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=3 -mmt=$(nproc) -mtc=off -mtm=off \"$OUT_DIR/$ZIP_FILE_NAME\" -r *" || exit 1
+rm -f "$OUTPUT_FILE"
+EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=3 -mmt=$(nproc) -mtc=off -mtm=off \"$OUTPUT_FILE\" -r *" || exit 1
 
 exit 0
