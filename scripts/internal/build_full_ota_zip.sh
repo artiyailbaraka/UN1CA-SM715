@@ -126,7 +126,7 @@ GENERATE_UPDATER_SCRIPT()
     [ -f "$TMP_DIR/system_dlkm.transfer.list" ] && PARTITION_COUNT=$((PARTITION_COUNT + 1))
 
     {
-        PRINT_ASSERTIONS
+        PRINT_ASSERTIONS "$BUILD_INFO" || exit 1
 
         PRINT_HEADER "$BUILD_INFO" || exit 1
 

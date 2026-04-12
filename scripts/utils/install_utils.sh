@@ -8,13 +8,21 @@ KERNEL_BINS="dtbo init_boot vendor_boot"
 PARTITIONS_LIST="system vendor product system_ext odm vendor_dlkm odm_dlkm system_dlkm"
 # ]
 
-# PRINT_ASSERTIONS
+# PRINT_ASSERTIONS <info>
 # Returns the assertions code text to be used in the updater-script file.
 PRINT_ASSERTIONS()
 {
-    if [ -n "$TARGET_ASSERT_MODEL" ]; then
-        local TARGET_ASSERT_MODEL="$TARGET_ASSERT_MODEL"
-        IFS=':' read -r -a TARGET_ASSERT_MODEL <<< "$TARGET_ASSERT_MODEL"
+    _CHECK_NON_EMPTY_PARAM "BUILD_INFO" "$1" || return 1
+
+    local BUILD_INFO="$1"
+
+    local DEVICE
+    DEVICE="$(grep "^device" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+
+    if [ "$(grep "^model" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)" ]; then
+        local TARGET_ASSERT_MODEL
+        TARGET_ASSERT_MODEL="$(grep "^model" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
+        IFS=';' read -r -a TARGET_ASSERT_MODEL <<< "$TARGET_ASSERT_MODEL"
 
         for i in "${TARGET_ASSERT_MODEL[@]}"; do
             echo -n 'getprop("ro.boot.em.model") == "'
@@ -22,18 +30,23 @@ PRINT_ASSERTIONS()
             echo -n '" || '
         done
         echo -n 'abort("E3004: This package is for \"'
-        echo -n "$TARGET_CODENAME"
+        echo -n "$DEVICE"
         echo    '\" devices; this is a \"" + getprop("ro.product.device") + "\".");'
     else
         echo -n 'getprop("ro.product.device") == "'
-        echo -n "$TARGET_CODENAME"
+        echo -n "$DEVICE"
         echo -n '" || abort("E3004: This package is for \"'
-        echo -n "$TARGET_CODENAME"
+        echo -n "$DEVICE"
         echo    '\" devices; this is a \"" + getprop("ro.product.device") + "\".");'
     fi
 
-    if [ -f "$SRC_DIR/target/$TARGET_CODENAME/installer/assertions.edify" ]; then
-        cat "$SRC_DIR/target/$TARGET_CODENAME/installer/assertions.edify"
+    if [ ! -d "$SRC_DIR/target/$DEVICE" ]; then
+        LOGE "Folder not found: target/$DEVICE"
+        return 1
+    fi
+
+    if [ -f "$SRC_DIR/target/$DEVICE/installer/assertions.edify" ]; then
+        cat "$SRC_DIR/target/$DEVICE/installer/assertions.edify"
     fi
 }
 
@@ -81,7 +94,6 @@ PRINT_HEADER()
 
     local ROM_VERSION
     local TARGET_NAME
-    local NAME
     local ONEUI_VERSION
     local MAJOR
     local MINOR
