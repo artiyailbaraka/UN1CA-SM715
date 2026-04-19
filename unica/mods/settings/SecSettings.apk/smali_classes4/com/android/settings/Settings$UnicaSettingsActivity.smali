@@ -1,5 +1,5 @@
 .class public Lcom/android/settings/Settings$UnicaSettingsActivity;
-.super Lcom/android/settings/SettingsActivity;
+.super Lcom/android/settings/UnicaBaseSettingsActivity;
 .source "Settings.java"
 
 
