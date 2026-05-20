@@ -253,6 +253,7 @@ system/app/SmartReminder
 
 # Samsung Visit In
 SYSTEM_DEBLOAT+="
+system/etc/permissions/com.samsung.feature.ipsgeofence.xml
 system/etc/permissions/privapp-permissions-com.samsung.android.ipsgeofence.xml
 system/priv-app/IpsGeofence
 "
