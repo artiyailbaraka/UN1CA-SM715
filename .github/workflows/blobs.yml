@@ -17,9 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - module: "Galaxy A17 5G (a17xxx)"
-            device: "a17xxx"
-            firmware: "SM-A176B/INS/350042791234568"
           - module: "Galaxy M36 5G (m36xxx)"
             path: "prebuilts/samsung/m36xxx"
             firmware: "SM-M366B/INS/354931771234562"
